@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Life OS Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --bg: #000000; --card: #1c1c1e; --accent: #32d74b; --text: #ffffff; }
+        body { background-color: var(--bg); color: var(--text); font-family: -apple-system, system-ui; overflow-x: hidden; }
+        .ios-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 16px; }
+        .card { 
+            background: var(--card); border-radius: 22px; padding: 20px; 
+            display: flex; flex-direction: column; align-items: center; 
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #2c2c2e; position: relative; overflow: hidden;
+        }
+        .card:active { transform: scale(0.92); filter: brightness(1.2); }
+        .status-dot { position: absolute; top: 12px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: #3a3a3c; }
+        .success .status-dot { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .success { border-color: #32d74b55; background: linear-gradient(145deg, #1c1c1e 0%, #064e3b 100%); }
+        
+        .sub-page { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--bg); z-index: 100; transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            padding: 20px; padding-top: 60px;
+        }
+        .sub-page.active { transform: translateY(0); }
+        input, textarea { background: #1c1c1e; border: 1px solid #3a3a3c; color: white; border-radius: 12px; padding: 12px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <header class="p-8 pt-12">
+        <h1 class="text-3xl font-extrabold tracking-tight">Hayat Projem</h1>
+        <div class="mt-4 flex items-center justify-between bg-[#1c1c1e] p-3 rounded-2xl">
+            <i class="fa-solid fa-calendar-day text-emerald-400"></i>
+            <input type="date" id="mainDate" class="bg-transparent border-none p-0 w-auto font-bold text-center">
+        </div>
+    </header>
+
+    <div class="ios-grid" id="mainDashboard">
+        </div>
+
+    <div id="detailPage" class="sub-page">
+        <div class="flex justify-between items-center mb-8">
+            <button onclick="closePage()" class="text-emerald-400 text-lg font-bold"><i class="fa-solid fa-chevron-left mr-2"></i>Geri</button>
+            <h2 id="pageTitle" class="text-xl font-bold uppercase tracking-widest">Başlık</h2>
+            <div class="w-10"></div>
+        </div>
+
+        <div id="pageContent" class="space-y-6">
+            </div>
+
+        <button onclick="saveData()" class="fixed bottom-10 left-6 right-6 bg-emerald-500 text-black font-black py-4 rounded-2xl text-xl shadow-2xl">VERİYİ KAYDET</button>
+    </div>
+
+    <script>
+        const categories = [
+            { id: 'kilo', name: 'Kilo Kontrolü', icon: 'fa-weight-scale', unit: 'kg', color: 'blue' },
+            { id: 'su', name: 'Su İçimi', icon: 'fa-droplet', unit: 'şişe', color: 'cyan' },
+            { id: 'dil', name: 'Dil Gelişimi', icon: 'fa-language', unit: 'dk', color: 'orange' },
+            { id: 'sanat', name: 'Sanat & Şiir', icon: 'fa-pen-nib', unit: 'adet', color: 'pink' },
+            { id: 'sessizlik', name: 'Sessizlik', icon: 'fa-comment-slash', unit: 'saat', color: 'purple' },
+            { id: 'diyet', name: 'Sıfır Çikolata', icon: 'fa-ban', unit: 'durum', color: 'red' },
+            { id: 'para', name: 'Harcama', icon: 'fa-wallet', unit: 'TL', color: 'emerald', full: true }
+        ];
+
+        let activeId = null;
+        const dateInput = document.getElementById('mainDate');
+        dateInput.valueAsDate = new Date();
+
+        function init() {
+            const container = document.getElementById('mainDashboard');
+            container.innerHTML = '';
+            categories.forEach(cat => {
+                const data = getSavedData(cat.id);
+                const score = data.score || 0;
+                const isSuccess = score >= 10;
+                
+                container.innerHTML += `
+                    <div class="card ${cat.full ? 'col-span-2' : ''} ${isSuccess ? 'success' : ''}" onclick="openPage('${cat.id}')">
+                        <div class="status-dot"></div>
+                        <span class="text-3xl mb-2"><i class="fa-solid ${cat.icon}"></i></span>
+                        <div class="text-2xl font-black">${score}/10</div>
+                        <h3 class="text-xs font-bold opacity-60 uppercase mt-1">${cat.name}</h3>
+                    </div>
+                `;
+            });
+        }
+
+        function openPage(id) {
+            activeId = id;
+            const cat = categories.find(c => c.id === id);
+            const data = getSavedData(id);
+            
+            document.getElementById('pageTitle').innerText = cat.name;
+            const content = document.getElementById('pageContent');
+            
+            let extraFields = '';
+            if(id === 'su') extraFields = `<p class="text-sm opacity-50">Bugün kaç 750ml şişe bitti?</p><input type="number" id="val" value="${data.val || 0}">`;
+            else if(id === 'para') extraFields = `<p class="text-sm opacity-50">Bugünkü toplam harcaman:</p><input type="number" id="val" value="${data.val || 0}">`;
+            else if(id === 'sanat') extraFields = `<p class="text-sm opacity-50">Yazılan şiir veya not:</p><textarea id="val" rows="5">${data.val || ''}</textarea>`;
+            else extraFields = `<p class="text-sm opacity-50">İlerleme Değeri (${cat.unit}):</p><input type="number" id="val" value="${data.val || 0}">`;
+
+            content.innerHTML = `
+                <div class="bg-zinc-900 p-6 rounded-3xl border border-zinc-800">
+                    <p class="text-center mb-2 font-bold">GÜNLÜK PUAN (1-10)</p>
+                    <input type="range" id="score" min="0" max="10" value="${data.score || 0}" class="accent-emerald-500" oninput="this.nextElementSibling.innerText = this.value">
+                    <div class="text-center text-4xl font-black text-emerald-400 mt-2">${data.score || 0}</div>
+                </div>
+                <div class="bg-zinc-900 p-6 rounded-3xl border border-zinc-800">
+                    ${extraFields}
+                </div>
+            `;
+            
+            document.getElementById('detailPage').classList.add('active');
+        }
+
+        function closePage() { document.getElementById('detailPage').classList.remove('active'); }
+
+        function getSavedData(id) {
+            const date = dateInput.value;
+            const allData = JSON.parse(localStorage.getItem('lifeOS_data') || '{}');
+            return (allData[date] && allData[date][id]) ? allData[date][id] : {};
+        }
+
+        function saveData() {
+            const date = dateInput.value;
+            const score = document.getElementById('score').value;
+            const val = document.getElementById('val').value;
+            
+            const allData = JSON.parse(localStorage.getItem('lifeOS_data') || '{}');
+            if(!allData[date]) allData[date] = {};
+            allData[date][activeId] = { score: parseInt(score), val: val };
+            
+            localStorage.setItem('lifeOS_data', JSON.stringify(allData));
+            closePage();
+            init();
+        }
+
+        dateInput.onchange = init;
+        init();
+    </script>
+</body>
+</html>
